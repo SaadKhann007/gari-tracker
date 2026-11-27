@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#E8EDEF">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Gari Tracker</title>
+<script>
+// theme pehle set karo taake flash na ho
+(function () {
+  var t = null;
+  try { t = localStorage.getItem("gt-theme"); } catch (e) {}
+  if (t !== "light" && t !== "dark") t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", t);
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Din: motorway green on fog. Raat: headlight amber on tarmac. */
+  :root{
+    color-scheme:light;
+    --bg:#E8EDEF; --surface:#FFFFFF; --surface2:#F1F5F6; --ink:#13202A; --muted:#566772; --line:#D2DBDF;
+    --accent:#0B6B4D; --accent-ink:#FFFFFF; --danger:#B3263E; --warn:#8F5200; --warn-bg:#FFF1D6;
+    --font:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --font-cond:"Barlow Condensed","Barlow",system-ui,sans-serif;
+  }
+  [data-theme="dark"]{
+    color-scheme:dark;
+    --bg:#0D1317; --surface:#151E24; --surface2:#1C2830; --ink:#E7EEF1; --muted:#8FA1AB; --line:#26343C;
+    --accent:#F4B942; --accent-ink:#1A1305; --danger:#FF7B90; --warn:#FFC36B; --warn-bg:#2C2208;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.45}
+  @media (prefers-reduced-motion:no-preference){
+    body,.panel,.hero,.tile,.vcard,input,select,.btn,.seg button{transition:background-color .25s,border-color .25s,color .25s}
+  }
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .wrap{max-width:860px;margin:0 auto;padding:14px 14px 48px}
+  .hidden{display:none!important}
+
+  /* top bar */
+  .top{display:flex;align-items:center;gap:8px;padding:6px 0 14px}
+  .top h1{flex:1;margin:0;font-family:var(--font-cond);font-weight:700;font-size:30px;letter-spacing:.01em;line-height:1}
+  .iconbtn{width:42px;height:42px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);display:grid;place-items:center;cursor:pointer;padding:0}
+  .iconbtn svg{width:20px;height:20px}
+  .btn{padding:10px 16px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-ink);font:600 15px var(--font);cursor:pointer}
+  .btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+  .btn.sm{padding:6px 12px;font-size:14px}
+  .btn.danger{background:transparent;color:var(--danger);padding:6px 0}
+  .btn.x{background:transparent;color:var(--danger);padding:2px 8px;font-size:16px}
+
+  /* number plate, yehi is app ki pehchan hai */
+  .plate{display:inline-block;font-family:var(--font-cond);font-weight:700;font-size:16px;letter-spacing:.09em;line-height:1.15;
+    padding:3px 10px 2px;background:#fff;color:#141414;border:2px solid #141414;border-radius:6px;
+    box-shadow:0 1px 0 rgba(0,0,0,.35),inset 0 0 0 1.5px #fff,inset 0 0 0 2.5px #d4d4d4;white-space:nowrap}
+  .plate.lg{font-size:24px;padding:4px 14px 3px}
+  .plate.empty{background:transparent;color:var(--muted);border:1.5px dashed var(--line);box-shadow:none;font:500 13px var(--font);letter-spacing:0;padding:3px 9px}
+
+  /* gari ki strip */
+  .strip{display:flex;gap:10px;overflow-x:auto;padding:2px 2px 12px;margin:0 -2px;scroll-snap-type:x proximity}
+  .vcard{flex:0 0 auto;min-width:156px;scroll-snap-align:start;text-align:left;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px;cursor:pointer;font:inherit}
+  .vcard svg{width:28px;height:28px;color:var(--muted)}
+  .vcard .vname{font-weight:600;font-size:16px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .vcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .vcard.on svg{color:var(--accent)}
+  .vcard.add{border-style:dashed;background:transparent;color:var(--muted);justify-content:center;align-items:center;min-width:112px}
+  .vcard.add .plus{font:500 30px/1 var(--font-cond)}
+  .ftag{font-size:13px;color:var(--muted)}
+
+  /* tabs */
+  .seg{display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface2);border:1.5px solid var(--line);border-radius:12px;padding:3px;margin:4px 0 14px}
+  .seg button{border:0;background:transparent;color:var(--muted);padding:9px 2px;border-radius:9px;font:600 14px var(--font);cursor:pointer}
+  .seg button.on{background:var(--accent);color:var(--accent-ink)}
+
+  .panel{background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+  .panel h2{margin:0 0 4px;font:600 18px var(--font)}
+  .panel.sec{border-left:6px solid var(--accent)}
+  .panel.sec h2{font:700 24px var(--font-cond);letter-spacing:.01em;margin-bottom:2px}
+  .scroll{overflow-x:auto}
+
+  /* gari ka naam */
+  .hero{background:var(--surface);border:1.5px solid var(--line);border-radius:18px;padding:14px 16px;margin-bottom:12px}
+  .hero-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .hname{font:700 26px var(--font-cond);margin-bottom:4px}
+
+  /* moti moti baatein */
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+  .tile{background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:14px}
+  .tile b{display:block;font:700 clamp(36px,10vw,48px)/1 var(--font-cond);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+  .tile b small{font:500 16px var(--font-cond);color:var(--muted);margin-left:4px}
+  .tile span{display:block;font-size:14px;color:var(--muted);margin-top:6px}
+  .tile.hl b{color:var(--accent)}
+  .tile.warn{border-color:var(--warn);background:var(--warn-bg)}
+  .tile.warn b,.tile.warn span{color:var(--warn)}
+
+  /* fuel blocks */
+  .kind.next{margin-top:18px;padding-top:6px;border-top:1.5px solid var(--line)}
+  .ktag{display:inline-block;font:600 13px var(--font);padding:2px 10px;border-radius:999px;background:var(--surface2);border:1.5px solid var(--line);color:var(--muted);margin-top:10px}
+  .big{display:flex;align-items:baseline;gap:10px;margin:8px 0 4px}
+  .big b{font:700 clamp(56px,16vw,92px)/0.9 var(--font-cond);color:var(--accent);font-variant-numeric:tabular-nums}
+  .big span{font:500 18px var(--font);color:var(--muted)}
+  .trio{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 4px;padding-top:12px;border-top:1.5px solid var(--line)}
+  .trio b{display:block;font:600 22px var(--font-cond);font-variant-numeric:tabular-nums}
+  .trio span{font-size:13px;color:var(--muted)}
+  .bars{display:flex;align-items:flex-end;gap:6px;height:90px;margin:22px 0 4px}
+  .bar{flex:1;background:var(--accent);opacity:.9;border-radius:5px 5px 0 0;min-height:3px;position:relative}
+  .bar i{position:absolute;top:-17px;left:-4px;right:-4px;text-align:center;font:500 11px var(--font);font-style:normal;color:var(--muted)}
+  .hint{color:var(--muted);font-size:14px;margin:10px 0 0}
+
+  /* receipt jaisa hisaab */
+  .rl{display:flex;align-items:baseline;gap:8px;padding:5px 0;font-size:16px}
+  .rl i{flex:1;border-bottom:2px dotted var(--line);transform:translateY(-4px)}
+  .rl b{font:600 17px var(--font);font-variant-numeric:tabular-nums;text-align:right}
+  .rl.total{margin-top:6px;padding-top:10px;border-top:1.5px solid var(--ink)}
+  .rl.total b{font-size:20px;color:var(--accent)}
+  .rows{margin-top:10px}
+
+  .alert{background:var(--warn-bg);color:var(--warn);border:1.5px solid var(--warn);padding:10px 12px;border-radius:12px;margin-bottom:10px;font-weight:500}
+
+  /* forms */
+  label{display:block;font-size:14px;color:var(--muted);margin:12px 0 4px}
+  label.check{display:flex;align-items:center;gap:8px;color:var(--ink);margin:6px 0}
+  .checks{display:flex;flex-wrap:wrap;gap:4px 18px}
+  input,select{width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface2);color:var(--ink);font:16px var(--font)}
+  input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
+  input:focus,select:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+  .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 12px}
+  .actions{display:flex;gap:8px;margin-top:16px}
+
+  table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+  th{font-weight:500;color:var(--muted);text-align:left;padding:8px 6px;border-bottom:1.5px solid var(--line);white-space:nowrap}
+  td{padding:9px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+  tr:last-child td{border-bottom:0}
+
+  .msg{padding:9px 12px;border-radius:10px;font-size:14px;margin-top:12px}
+  .msg.err{background:color-mix(in srgb,var(--danger) 14%,transparent);color:var(--danger)}
+  .msg.ok{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
+  .empty-state{text-align:center;padding:34px 16px}
+  .empty-state p{color:var(--muted);margin:6px 0 16px}
+
+  /* login */
+  .auth{max-width:400px;margin:6vh auto 0}
+  .auth h2{font:700 30px var(--font-cond);margin:0 0 2px}
+
+  dialog{border:1.5px solid var(--line);border-radius:18px;background:var(--surface);color:var(--ink);padding:18px;width:min(420px,calc(100vw - 28px))}
+  dialog::backdrop{background:rgba(5,10,14,.55)}
+  dialog h2{margin:0 0 4px;font:700 26px var(--font-cond)}
+
+  @media (max-width:520px){
+    .trio{grid-template-columns:repeat(2,1fr);row-gap:12px}
+    .seg button{font-size:13px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Gari Tracker</h1>
+  <button id="btnTheme" class="iconbtn" type="button" aria-label="Night mode"></button>
+  <button id="btnLogout" class="btn ghost sm hidden" type="button">Logout</button>
+</header>
+
+<div id="setupMsg" class="panel hidden">
+  <h2>Setup baqi hai</h2>
+  <p class="hint">index.html ke upar <code>SUPABASE_URL</code> aur <code>SUPABASE_ANON_KEY</code> apni Supabase project ki values se badlo. README.md dekho.</p>
+</div>
+
+<div id="authView" class="panel auth hidden">
+  <h2>Login</h2>
+  <p class="hint" style="margin-top:0">Apni gariyon ka hisaab, ek jagah.</p>
+  <label for="email">Email</label><input id="email" type="email" autocomplete="email">
+  <label for="password">Password (kam az kam 6 characters)</label><input id="password" type="password" autocomplete="current-password">
+  <div class="actions">
+    <button id="btnLogin" class="btn" type="button">Login</button>
+    <button id="btnSignup" class="btn ghost" type="button">Naya account</button>
+  </div>
+  <div id="authMsg"></div>
+</div>
+
+<div id="appView" class="hidden">
+  <div id="vehicleStrip" class="strip" role="tablist" aria-label="Gariyan"></div>
+
+  <div id="mainArea">
+    <div class="seg" role="tablist">
+      <button data-tab="dash" class="on" type="button">Dashboard</button>
+      <button data-tab="fuel" type="button">Fuel</button>
+      <button data-tab="maint" type="button">Maintenance</button>
+      <button data-tab="meter" type="button">Meter</button>
+    </div>
+
+    <div id="tabDash"></div>
+
+    <div id="tabFuel" class="hidden">
+      <div class="panel">
+        <h2>Fuel entry</h2>
+        <div class="row">
+          <div id="fKindWrap" class="hidden"><label for="fKind">Kaunsa fuel</label><select id="fKind"></select></div>
+          <div><label for="fDate">Date</label><input id="fDate" type="date"></div>
+          <div><label for="fOdo">Meter reading (km)</label><input id="fOdo" type="number" inputmode="decimal" step="any"></div>
+          <div><label for="fLit" id="fLitLabel">Litres</label><input id="fLit" type="number" inputmode="decimal" step="any"></div>
+          <div><label for="fCost">Total paisay (Rs)</label><input id="fCost" type="number" inputmode="decimal" step="any"></div>
+        </div>
+        <label class="check"><input id="fFull" type="checkbox" checked> Tanki full ki (average sahi nikalne ke liye)</label>
+        <label for="fNotes">Note (optional)</label><input id="fNotes">
+        <div class="actions"><button id="btnSaveFuel" class="btn" type="button">Save fuel</button></div>
+        <div id="fMsg"></div>
+      </div>
+      <div class="panel scroll"><div id="fuelTable"></div></div>
+    </div>
+
+    <div id="tabMaint" class="hidden">
+      <div class="panel">
+        <h2>Maintenance entry</h2>
+        <div class="row">
+          <div><label for="mDate">Date</label><input id="mDate" type="date"></div>
+          <div><label for="mOdo">Meter reading (km)</label><input id="mOdo" type="number" inputmode="decimal" step="any"></div>
+          <div><label for="mCat">Kaam</label>
+            <select id="mCat">
+              <option>Oil change</option><option>Oil filter</option><option>Air filter</option><option>Tyres</option>
+              <option>Brakes</option><option>Battery</option><option>Tuning</option><option>Puncture</option>
+              <option>Suspension</option><option>Wash/Detailing</option><option>Repair</option><option>Other</option>
+            </select>
+          </div>
+          <div><label for="mCost">Kharcha (Rs)</label><input id="mCost" type="number" inputmode="decimal" step="any"></div>
+          <div><label for="mNext">Agli service kitne km par</label><input id="mNext" type="number" inputmode="decimal" step="any" placeholder="optional"></div>
+        </div>
+        <label for="mDesc">Detail (optional)</label><input id="mDesc">
+        <div class="actions"><button id="btnSaveMaint" class="btn" type="button">Save maintenance</button></div>
+        <div id="mMsg"></div>
+      </div>
+      <div class="panel scroll"><div id="maintTable"></div></div>
+    </div>
+
+    <div id="tabMeter" class="hidden">
+      <div class="panel">
+        <h2>Meter reading</h2>
+        <p class="hint" style="margin-top:0">Petrol ya service ke bina bhi meter likh sakte ho.</p>
+        <div class="row">
+          <div><label for="rDate">Date</label><input id="rDate" type="date"></div>
+          <div><label for="rOdo">Meter reading (km)</label><input id="rOdo" type="number" inputmode="decimal" step="any"></div>
+        </div>
+        <label for="rNotes">Note (optional)</label><input id="rNotes">
+        <div class="actions"><button id="btnSaveMeter" class="btn" type="button">Save meter</button></div>
+        <div id="rMsg"></div>
+      </div>
+      <div class="panel scroll"><div id="meterTable"></div></div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<dialog id="vDialog">
+  <h2 id="vTitle">Nayi gari</h2>
+  <label for="vName">Naam (e.g. Mazda, Honda 70)</label><input id="vName" autocomplete="off">
+  <div class="row">
+    <div><label for="vType">Type</label>
+      <select id="vType"><option value="car">Car</option><option value="bike">Motorbike</option><option value="pickup">Pickup</option><option value="other">Other</option></select>
+    </div>
+    <div><label for="vPlate">Number plate</label><input id="vPlate" autocomplete="off" placeholder="e.g. LEA-1234" style="text-transform:uppercase"></div>
+  </div>
+  <label>Fuel (ek ya zyada chuno)</label>
+  <div class="checks" id="vFuels">
+    <label class="check"><input type="checkbox" value="petrol"> Petrol</label>
+    <label class="check"><input type="checkbox" value="diesel"> Diesel</label>
+    <label class="check"><input type="checkbox" value="gas"> Gas (CNG / LPG)</label>
+  </div>
+  <div class="actions">
+    <button id="btnSaveVehicle" class="btn" type="button">Save</button>
+    <button id="btnCancelVehicle" class="btn ghost" type="button">Cancel</button>
+  </div>
+  <div id="vMsg"></div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ====== YAHAN APNI SUPABASE VALUES DALO ======
+const SUPABASE_URL = "https://etmbwjhmfxeqnwfshcft.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_IRYiok6df-7t3L1R2PkJtw_wgd9pzLa";
+// =============================================
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const num = (v) => (v === "" || v == null ? null : Number(v));
+const fmt = (n, d = 0) => (n == null || isNaN(n) ? "-" : Number(n).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }));
+const today = () => new Date().toISOString().slice(0, 10);
+
+let sb = null;
+let editingVehicleId = null;
+const state = { vehicles: [], fuel: [], maint: [], meter: [], meterMissing: false, vid: null, tab: "dash" };
+
+// ---------- icons ----------
+const svg = (inner) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + inner + "</svg>";
+const ICONS = {
+  bike: svg('<circle cx="5.5" cy="16.5" r="3"/><circle cx="18.5" cy="16.5" r="3"/><path d="M5.5 16.5L8.5 10.5h5.5l4.5 6M8.5 10.5l3 6h3M16 6.5l2.5 10M14.2 6.5h3.3M6.5 10.5h5"/>'),
+  car: svg('<path d="M4 16v-4l2-5h12l2 5v4M4 16h16M4 16v2h3v-2M17 16v2h3v-2M4 12h16"/><circle cx="7.5" cy="14" r=".6"/><circle cx="16.5" cy="14" r=".6"/>'),
+  pickup: svg('<path d="M2 16v-4h6l2.5-4H16v4h6v4M2 16h20"/><circle cx="7" cy="17.5" r="2"/><circle cx="17" cy="17.5" r="2"/>'),
+  other: svg('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4v5.5M12 14.5V20M4.5 9l5 2M14.5 13l5 2"/>'),
+};
+const iconFor = (t) => ICONS[t] || ICONS.other;
+const SUN = svg('<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.2 5.2l1.8 1.8M17 17l1.8 1.8M5.2 18.8L7 17M17 7l1.8-1.8"/>');
+const MOON = svg('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>');
+
+function plateChip(p, size) {
+  return p ? '<span class="plate' + (size === "lg" ? " lg" : "") + '">' + esc(p) + "</span>" : '<span class="plate empty">Plate nahi</span>';
+}
+
+// ---------- theme ----------
+function applyTheme(t) {
+  document.documentElement.setAttribute("data-theme", t);
+  try { localStorage.setItem("gt-theme", t); } catch (e) {}
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute("content", t === "dark" ? "#0D1317" : "#E8EDEF");
+  const b = $("btnTheme");
+  b.innerHTML = t === "dark" ? SUN : MOON;
+  b.setAttribute("aria-label", t === "dark" ? "Day mode" : "Night mode");
+}
+const currentTheme = () => document.documentElement.getAttribute("data-theme") || "light";
+
+function setMsg(id, text, kind) {
+  $(id).innerHTML = text ? '<div class="msg ' + kind + '">' + esc(text) + "</div>" : "";
+}
+
+function show(view) {
+  ["setupMsg", "authView", "appView"].forEach((v) => $(v).classList.toggle("hidden", v !== view));
+  $("btnLogout").classList.toggle("hidden", view !== "appView");
+}
+
+// ---------- fuel types ----------
+const ALL_KINDS = ["petrol", "diesel", "gas"];
+const KIND_LABEL = { petrol: "Petrol", diesel: "Diesel", gas: "Gas" };
+const KIND_UNIT = { petrol: "L", diesel: "L", gas: "kg/L" };
+const KIND_AVG = { petrol: "km/L", diesel: "km/L", gas: "km per kg/L" };
+
+// vehicle.fuel_type: "petrol", "diesel,gas", "petrol,gas" ... (purana "both" = petrol+gas)
+function vehicleKinds(v) {
+  const raw = v && v.fuel_type ? String(v.fuel_type) : "petrol";
+  const list = raw === "both" ? ["petrol", "gas"] : raw.split(",").map((s) => s.trim());
+  const out = ALL_KINDS.filter((k) => list.indexOf(k) >= 0);
+  return out.length ? out : ["petrol"];
+}
+const fuelTag = (v) => vehicleKinds(v).map((k) => KIND_LABEL[k]).join(" + ");
+const kindOf = (l) => (KIND_LABEL[l.fuel_kind] ? l.fuel_kind : "petrol");
+
+// ---------- calculations ----------
+function kindStats(sorted) {
+  const perFill = {};
+  const segs = [];
+  let lastFull = null, accL = 0, accC = 0;
+  for (const l of sorted) {
+    if (lastFull !== null) {
+      accL += Number(l.liters);
+      accC += Number(l.total_cost);
+      if (l.full_tank) {
+        const dist = l.odometer - lastFull;
+        if (dist > 0 && accL > 0) {
+          const seg = { id: l.id, dist, liters: accL, cost: accC, kmpl: dist / accL, costKm: accC / dist };
+          segs.push(seg);
+          perFill[l.id] = seg;
+        }
+        lastFull = l.odometer; accL = 0; accC = 0;
+      }
+    } else if (l.full_tank) {
+      lastFull = l.odometer; accL = 0; accC = 0;
+    }
+  }
+  const dist = segs.reduce((s, x) => s + x.dist, 0);
+  const lit = segs.reduce((s, x) => s + x.liters, 0);
+  return {
+    perFill, segs,
+    avg: lit > 0 ? dist / lit : null,
+    last: segs.length ? segs[segs.length - 1].kmpl : null,
+    best: segs.length ? Math.max(...segs.map((s) => s.kmpl)) : null,
+    worst: segs.length ? Math.min(...segs.map((s) => s.kmpl)) : null,
+  };
+}
+
+function fuelStats(logs) {
+  const out = { byKind: {}, perFill: {} };
+  ALL_KINDS.forEach((k) => {
+    const sorted = logs.filter((l) => kindOf(l) === k).sort((a, b) => a.odometer - b.odometer);
+    const st = kindStats(sorted);
+    out.byKind[k] = st;
+    Object.assign(out.perFill, st.perFill);
+  });
+  return out;
+}
+
+function vehicleSummary(vid) {
+  const fuel = state.fuel.filter((f) => f.vehicle_id === vid);
+  const maint = state.maint.filter((m) => m.vehicle_id === vid);
+  const meter = state.meter.filter((m) => m.vehicle_id === vid);
+  const fs = fuelStats(fuel);
+
+  // meter: fuel, maintenance aur meter entries, teeno se
+  const pts = [];
+  fuel.forEach((f) => pts.push({ d: f.date, o: Number(f.odometer) }));
+  maint.forEach((m) => { if (m.odometer != null) pts.push({ d: m.date, o: Number(m.odometer) }); });
+  meter.forEach((m) => pts.push({ d: m.date, o: Number(m.odometer) }));
+  const odos = pts.map((p) => p.o);
+  const currentOdo = odos.length ? Math.max(...odos) : null;
+  const firstOdo = odos.length ? Math.min(...odos) : null;
+  const totalKm = odos.length > 1 ? currentOdo - firstOdo : 0;
+  let kmPerDay = null;
+  const ts = pts.map((p) => Date.parse(p.d)).filter((t) => !isNaN(t));
+  if (ts.length > 1 && totalKm > 0) {
+    const days = (Math.max(...ts) - Math.min(...ts)) / 86400000;
+    if (days >= 1) kmPerDay = totalKm / days;
+  }
+
+  // fuel
+  const totals = {};
+  ALL_KINDS.forEach((k) => (totals[k] = { qty: 0, cost: 0, n: 0, lastDate: null }));
+  fuel.forEach((f) => {
+    const t = totals[kindOf(f)];
+    t.qty += Number(f.liters); t.cost += Number(f.total_cost); t.n++;
+    if (!t.lastDate || f.date > t.lastDate) t.lastDate = f.date;
+  });
+  const fuelSpend = ALL_KINDS.reduce((s, k) => s + totals[k].cost, 0);
+  // fuel kharcha per km: pehli fill ke paisay chhor kar (wo purane km ke the)
+  const byOdo = fuel.slice().sort((a, b) => a.odometer - b.odometer);
+  let fuelCostPerKm = null;
+  if (byOdo.length > 1) {
+    const d = byOdo[byOdo.length - 1].odometer - byOdo[0].odometer;
+    const c = byOdo.slice(1).reduce((s, f) => s + Number(f.total_cost), 0);
+    if (d > 0) fuelCostPerKm = c / d;
+  }
+
+  // maintenance
+  const maintSpend = maint.reduce((s, m) => s + Number(m.cost), 0);
+  const lastService = maint.slice().sort((a, b) => (a.date < b.date ? 1 : -1))[0] || null;
+  const latest = {};
+  maint.slice().sort((a, b) => (a.date < b.date ? -1 : 1)).forEach((m) => { latest[m.category] = m; });
+  const alerts = [];
+  let nextDue = null;
+  Object.values(latest).forEach((m) => {
+    if (m.next_due_odometer != null && currentOdo != null) {
+      const left = Number(m.next_due_odometer) - currentOdo;
+      if (left <= 0) alerts.push(m.category + ": " + fmt(-left) + " km se overdue");
+      else if (left <= 500) alerts.push(m.category + ": " + fmt(left) + " km baqi");
+      if (nextDue === null || left < nextDue.left) nextDue = { category: m.category, left };
+    }
+  });
+
+  const ym = today().slice(0, 7);
+  const monthSpend =
+    fuel.filter((f) => String(f.date).startsWith(ym)).reduce((s, f) => s + Number(f.total_cost), 0) +
+    maint.filter((m) => String(m.date).startsWith(ym)).reduce((s, m) => s + Number(m.cost), 0);
+
+  return {
+    fs, totals, totalKm, fuelSpend, maintSpend, currentOdo, firstOdo, kmPerDay, alerts, nextDue, lastService, monthSpend, fuelCostPerKm,
+    totalSpend: fuelSpend + maintSpend,
+    costPerKm: totalKm > 0 ? (fuelSpend + maintSpend) / totalKm : null,
+    maintCostPerKm: totalKm > 0 ? maintSpend / totalKm : null,
+    fuelCount: fuel.length, maintCount: maint.length, meterCount: meter.length,
+  };
+}
+
+// ---------- data ----------
+async function loadAll() {
+  const [v, f, m, mt] = await Promise.all([
+    sb.from("vehicles").select("*").order("created_at"),
+    sb.from("fuel_logs").select("*").order("odometer", { ascending: false }),
+    sb.from("maintenance_logs").select("*").order("date", { ascending: false }),
+    sb.from("meter_logs").select("*").order("odometer", { ascending: false }),
+  ]);
+  const err = v.error || f.error || m.error;
+  if (err) { alert("DB error: " + err.message); return; }
+  state.vehicles = v.data; state.fuel = f.data; state.maint = m.data;
+  state.meterMissing = !!mt.error;
+  state.meter = mt.error ? [] : mt.data;
+  if (!state.vehicles.find((x) => x.id === state.vid)) state.vid = state.vehicles.length ? state.vehicles[0].id : null;
+  render();
+}
+
+// ---------- render ----------
+function renderStrip() {
+  const strip = $("vehicleStrip");
+  strip.innerHTML = state.vehicles.map((v) =>
+    '<button type="button" class="vcard' + (v.id === state.vid ? " on" : "") + '" data-vid="' + esc(v.id) + '">' +
+    iconFor(v.type) + '<span class="vname">' + esc(v.name) + "</span>" + plateChip(v.plate) +
+    '<span class="ftag">' + esc(fuelTag(v)) + "</span></button>"
+  ).join("") + '<button type="button" class="vcard add" id="btnAddVehicle"><span class="plus">+</span><span class="vname">Nayi gari</span></button>';
+  strip.querySelectorAll("[data-vid]").forEach((b) => (b.onclick = () => { state.vid = b.dataset.vid; render(); }));
+  $("btnAddVehicle").onclick = () => openVehicleDialog(null);
+}
+
+function render() {
+  renderStrip();
+  const has = !!state.vid;
+  $("mainArea").classList.toggle("hidden", !has);
+  if (!has) {
+    let box = $("emptyBox");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "emptyBox";
+      box.className = "panel empty-state";
+      box.innerHTML = "<h2>Abhi koi gari nahi</h2><p>Pehli gari add karo, phir fuel aur maintenance likhna shuru karo.</p>";
+      const btn = document.createElement("button");
+      btn.className = "btn"; btn.type = "button"; btn.textContent = "Gari add karo";
+      btn.onclick = () => openVehicleDialog(null);
+      box.appendChild(btn);
+      $("mainArea").parentNode.appendChild(box);
+    }
+    box.classList.remove("hidden");
+    return;
+  }
+  const eb = $("emptyBox"); if (eb) eb.classList.add("hidden");
+  const tabs = { dash: "tabDash", fuel: "tabFuel", maint: "tabMaint", meter: "tabMeter" };
+  Object.values(tabs).forEach((id) => $(id).classList.add("hidden"));
+  $(tabs[state.tab]).classList.remove("hidden");
+  document.querySelectorAll(".seg button").forEach((b) => b.classList.toggle("on", b.dataset.tab === state.tab));
+  updateFuelForm();
+  renderDash(); renderFuelTable(); renderMaintTable(); renderMeterTable();
+}
+
+function rl(label, value, cls) {
+  return '<div class="rl' + (cls ? " " + cls : "") + '"><span>' + label + "</span><i></i><b>" + value + "</b></div>";
+}
+function tile(value, label, cls, unit) {
+  return '<div class="tile' + (cls ? " " + cls : "") + '"><b>' + value + (unit ? "<small>" + unit + "</small>" : "") + "</b><span>" + esc(label) + "</span></div>";
+}
+
+function renderDash() {
+  const v = state.vehicles.find((x) => x.id === state.vid);
+  const s = vehicleSummary(state.vid);
+  const kinds = vehicleKinds(v);
+  let h = "";
+  if (s.alerts.length) h += s.alerts.map((a) => '<div class="alert">Service: ' + esc(a) + "</div>").join("");
+
+  h += '<section class="hero"><div class="hero-top"><div><div class="hname">' + esc(v.name) + "</div>" + plateChip(v.plate, "lg") +
+    '</div><button class="btn ghost sm" id="btnEditVehicle" type="button">Edit gari</button></div></section>';
+
+  // moti moti baatein
+  let t = "";
+  t += tile(s.currentOdo != null ? fmt(s.currentOdo) : "-", "Abhi meter", "", s.currentOdo != null ? "km" : "");
+  kinds.forEach((k) => {
+    const a = s.fs.byKind[k].avg;
+    t += tile(a != null ? fmt(a, 1) : "-", KIND_LABEL[k] + " average (" + KIND_AVG[k] + ")", "hl");
+  });
+  t += tile("Rs " + fmt(s.monthSpend), "Is mahine ka kharcha");
+  if (s.nextDue) {
+    const over = s.nextDue.left <= 0;
+    t += tile(over ? "Overdue" : fmt(s.nextDue.left), "Agli service: " + s.nextDue.category, over || s.nextDue.left <= 500 ? "warn" : "", over ? "" : "km");
+  } else {
+    t += tile("-", "Agli service (maintenance mein km likho)");
+  }
+  t += tile("Rs " + fmt(s.totalSpend), "Ab tak ka kul kharcha");
+  h += '<div class="tiles">' + t + "</div>";
+
+  // 1. fuel
+  h += '<section class="panel sec"><h2>Fuel</h2>';
+  kinds.forEach((k, i) => {
+    const ks = s.fs.byKind[k];
+    const tk = s.totals[k];
+    h += '<div class="kind' + (i ? " next" : "") + '">';
+    if (kinds.length > 1) h += '<span class="ktag">' + KIND_LABEL[k] + "</span>";
+    h += '<div class="big"><b>' + (ks.avg != null ? fmt(ks.avg, 1) : "-") + "</b><span>" + KIND_AVG[k] + " average</span></div>";
+    h += '<div class="trio">' +
+      "<div><b>" + fmt(ks.last, 1) + "</b><span>Pichli bar</span></div>" +
+      "<div><b>" + fmt(ks.best, 1) + "</b><span>Best</span></div>" +
+      "<div><b>" + fmt(ks.worst, 1) + "</b><span>Worst</span></div>" +
+      "<div><b>" + (ks.avg ? fmt(100 / ks.avg, 1) + " " + KIND_UNIT[k] : "-") + "</b><span>Per 100 km</span></div></div>";
+    const last = ks.segs.slice(-10);
+    if (last.length) {
+      const mx = Math.max(...last.map((x) => x.kmpl));
+      h += '<div class="bars" role="img" aria-label="Pichli fills ka average">' +
+        last.map((x) => '<div class="bar" style="height:' + Math.max(5, (x.kmpl / mx) * 100) + '%"><i>' + fmt(x.kmpl, 1) + "</i></div>").join("") + "</div>" +
+        '<p class="hint">Pichli ' + last.length + " fills ka " + KIND_AVG[k] + "</p>";
+    } else {
+      h += '<p class="hint">' + (kinds.length > 1 ? KIND_LABEL[k] + " average" : "Average") + " ke liye kam az kam 2 full-tank entries chahiye.</p>";
+    }
+    h += '<div class="rows">' +
+      rl(KIND_LABEL[k] + " kharcha", "Rs " + fmt(tk.cost)) +
+      rl("Total miqdar", fmt(tk.qty, 1) + " " + KIND_UNIT[k]) +
+      rl("Average rate", tk.qty > 0 ? "Rs " + fmt(tk.cost / tk.qty, 1) + " / " + KIND_UNIT[k] : "-") +
+      rl("Pichli fill", tk.lastDate ? esc(tk.lastDate) : "-") +
+      rl("Entries", String(tk.n)) + "</div></div>";
+  });
+  if (kinds.length > 1) h += '<p class="hint">Har fuel ka average uski apni full-tank fills se nikalta hai. Beech ke km dusre fuel par chalay hon to ye andaza hai.</p>';
+  h += '<div class="rows">' + rl("Fuel per km", s.fuelCostPerKm != null ? "Rs " + fmt(s.fuelCostPerKm, 1) : "-") + "</div></section>";
+
+  // 2. maintenance
+  h += '<section class="panel sec"><h2>Maintenance</h2><div class="rows">' +
+    rl("Total kharcha", "Rs " + fmt(s.maintSpend)) +
+    rl("Maintenance per km", s.maintCostPerKm != null ? "Rs " + fmt(s.maintCostPerKm, 1) : "-") +
+    rl("Kitni bar service", String(s.maintCount)) +
+    rl("Pichla kaam", s.lastService ? esc(s.lastService.category) + ", " + esc(s.lastService.date) : "-") +
+    rl("Agli service", s.nextDue ? (s.nextDue.left <= 0 ? esc(s.nextDue.category) + ": overdue" : esc(s.nextDue.category) + " in " + fmt(s.nextDue.left) + " km") : "-") +
+    "</div></section>";
+
+  // 3. meter
+  h += '<section class="panel sec"><h2>Meter reading</h2><div class="rows">' +
+    rl("Abhi meter", s.currentOdo != null ? fmt(s.currentOdo) + " km" : "-") +
+    rl("Pehla meter", s.firstOdo != null ? fmt(s.firstOdo) + " km" : "-") +
+    rl("Track kiye gaye km", fmt(s.totalKm) + " km") +
+    rl("Roz ka average", s.kmPerDay != null ? fmt(s.kmPerDay, 1) + " km" : "-") +
+    "</div></section>";
+
+  // kul hisaab
+  h += '<section class="panel"><h2>Kul hisaab</h2><div class="rows">' +
+    rl("Fuel", "Rs " + fmt(s.fuelSpend)) +
+    rl("Maintenance", "Rs " + fmt(s.maintSpend)) +
+    rl("Sab milake", "Rs " + fmt(s.totalSpend), "total") +
+    rl("Per km kharcha", s.costPerKm != null ? "Rs " + fmt(s.costPerKm, 1) : "-") +
+    "</div></section>";
+
+  if (state.vehicles.length > 1) {
+    h += '<div class="panel scroll"><h2>Sab gariyan</h2><table><tr><th>Gari</th><th>Meter</th><th>Average</th><th>Fuel Rs</th><th>Maint Rs</th><th>Rs/km</th></tr>' +
+      state.vehicles.map((x) => {
+        const y = vehicleSummary(x.id);
+        const avg = vehicleKinds(x).map((k) => (y.fs.byKind[k].avg != null ? fmt(y.fs.byKind[k].avg, 1) + " " + KIND_AVG[k] : "-")).join(" / ");
+        return "<tr><td>" + esc(x.name) + " " + plateChip(x.plate) + "</td><td>" + (y.currentOdo != null ? fmt(y.currentOdo) : "-") + "</td><td>" + avg + "</td><td>" + fmt(y.fuelSpend) + "</td><td>" + fmt(y.maintSpend) + "</td><td>" + (y.costPerKm != null ? fmt(y.costPerKm, 1) : "-") + "</td></tr>";
+      }).join("") + "</table></div>";
+  }
+  h += '<div style="text-align:right"><button class="btn danger" id="btnDelVehicle" type="button">Gari delete karo</button></div>';
+  $("tabDash").innerHTML = h;
+  $("btnDelVehicle").onclick = deleteVehicle;
+  $("btnEditVehicle").onclick = () => openVehicleDialog(state.vid);
+}
+
+function renderFuelTable() {
+  const v = state.vehicles.find((x) => x.id === state.vid);
+  const multi = vehicleKinds(v).length > 1;
+  const rows = state.fuel.filter((f) => f.vehicle_id === state.vid);
+  const fs = fuelStats(rows);
+  if (!rows.length) { $("fuelTable").innerHTML = '<p class="hint" style="margin:0">Abhi koi fuel entry nahi.</p>'; return; }
+  $("fuelTable").innerHTML = "<table><tr><th>Date</th><th>Meter</th>" + (multi ? "<th>Fuel</th>" : "") + "<th>Miqdar</th><th>Rs</th><th>Rs/unit</th><th>Full</th><th>Average</th><th></th></tr>" +
+    rows.map((f) => {
+      const k = kindOf(f);
+      const seg = fs.perFill[f.id];
+      return "<tr><td>" + esc(f.date) + "</td><td>" + fmt(f.odometer) + "</td>" + (multi ? "<td>" + KIND_LABEL[k] + "</td>" : "") +
+        "<td>" + fmt(f.liters, 1) + " " + KIND_UNIT[k] + "</td><td>" + fmt(f.total_cost) + "</td><td>" + fmt(f.total_cost / f.liters, 1) + "</td><td>" + (f.full_tank ? "Haan" : "Nahi") +
+        "</td><td>" + (seg ? fmt(seg.kmpl, 1) + " " + KIND_AVG[k] : "-") + '</td><td><button class="btn x" type="button" aria-label="Entry delete karo" data-del-fuel="' + esc(f.id) + '">x</button></td></tr>';
+    }).join("") + "</table>";
+  document.querySelectorAll("[data-del-fuel]").forEach((b) => (b.onclick = () => delRow("fuel_logs", b.dataset.delFuel)));
+}
+
+function renderMaintTable() {
+  const rows = state.maint.filter((m) => m.vehicle_id === state.vid);
+  if (!rows.length) { $("maintTable").innerHTML = '<p class="hint" style="margin:0">Abhi koi maintenance entry nahi.</p>'; return; }
+  $("maintTable").innerHTML = "<table><tr><th>Date</th><th>Meter</th><th>Kaam</th><th>Rs</th><th>Agli service</th><th>Detail</th><th></th></tr>" +
+    rows.map((m) => "<tr><td>" + esc(m.date) + "</td><td>" + fmt(m.odometer) + "</td><td>" + esc(m.category) + "</td><td>" + fmt(m.cost) + "</td><td>" + (m.next_due_odometer != null ? fmt(m.next_due_odometer) + " km" : "-") + "</td><td>" + esc(m.description) + '</td><td><button class="btn x" type="button" aria-label="Entry delete karo" data-del-maint="' + esc(m.id) + '">x</button></td></tr>').join("") + "</table>";
+  document.querySelectorAll("[data-del-maint]").forEach((b) => (b.onclick = () => delRow("maintenance_logs", b.dataset.delMaint)));
+}
+
+function renderMeterTable() {
+  if (state.meterMissing) {
+    $("meterTable").innerHTML = '<p class="hint" style="margin:0">Meter table abhi nahi bani. Supabase SQL Editor mein setup.sql dobara chalao.</p>';
+    return;
+  }
+  const rows = state.meter.filter((m) => m.vehicle_id === state.vid).sort((a, b) => b.odometer - a.odometer);
+  if (!rows.length) { $("meterTable").innerHTML = '<p class="hint" style="margin:0">Abhi koi meter entry nahi.</p>'; return; }
+  $("meterTable").innerHTML = "<table><tr><th>Date</th><th>Meter</th><th>Pichle se</th><th>Note</th><th></th></tr>" +
+    rows.map((r, i) => {
+      const prev = rows[i + 1];
+      return "<tr><td>" + esc(r.date) + "</td><td>" + fmt(r.odometer) + "</td><td>" + (prev ? "+" + fmt(r.odometer - prev.odometer) + " km" : "-") + "</td><td>" + esc(r.notes) + '</td><td><button class="btn x" type="button" aria-label="Entry delete karo" data-del-meter="' + esc(r.id) + '">x</button></td></tr>';
+    }).join("") + "</table>";
+  document.querySelectorAll("[data-del-meter]").forEach((b) => (b.onclick = () => delRow("meter_logs", b.dataset.delMeter)));
+}
+
+// ---------- actions ----------
+async function delRow(table, id) {
+  if (!confirm("Ye entry delete karni hai?")) return;
+  const { error } = await sb.from(table).delete().eq("id", id);
+  if (error) return alert(error.message);
+  loadAll();
+}
+
+async function deleteVehicle() {
+  const v = state.vehicles.find((x) => x.id === state.vid);
+  if (!v || !confirm(v.name + " aur uski saari entries delete ho jayengi. Pakka?")) return;
+  const { error } = await sb.from("vehicles").delete().eq("id", v.id);
+  if (error) return alert(error.message);
+  state.vid = null; loadAll();
+}
+
+function currentFuelKind() {
+  const v = state.vehicles.find((x) => x.id === state.vid);
+  const k = vehicleKinds(v);
+  return k.length > 1 ? $("fKind").value || k[0] : k[0];
+}
+
+function updateFuelForm() {
+  const v = state.vehicles.find((x) => x.id === state.vid);
+  if (!v) return;
+  const kinds = vehicleKinds(v);
+  const sel = $("fKind");
+  const prev = sel.value;
+  sel.innerHTML = kinds.map((k) => '<option value="' + k + '">' + KIND_LABEL[k] + "</option>").join("");
+  if (kinds.indexOf(prev) >= 0) sel.value = prev;
+  $("fKindWrap").classList.toggle("hidden", kinds.length < 2);
+  $("fLitLabel").textContent = currentFuelKind() === "gas" ? "Gas (kg ya litres)" : "Litres";
+}
+
+function openVehicleDialog(id) {
+  editingVehicleId = id;
+  const v = id ? state.vehicles.find((x) => x.id === id) : null;
+  $("vTitle").textContent = v ? "Gari edit karo" : "Nayi gari";
+  $("vName").value = v ? v.name : "";
+  $("vType").value = v ? v.type : "car";
+  $("vPlate").value = v && v.plate ? v.plate : "";
+  const kinds = v ? vehicleKinds(v) : ["petrol"];
+  document.querySelectorAll("#vFuels input").forEach((c) => (c.checked = kinds.indexOf(c.value) >= 0));
+  setMsg("vMsg", "", "");
+  $("vDialog").showModal();
+  $("vName").focus();
+}
+
+async function saveVehicle() {
+  const name = $("vName").value.trim();
+  if (!name) return setMsg("vMsg", "Gari ka naam likho.", "err");
+  const fuels = [...document.querySelectorAll("#vFuels input")].filter((c) => c.checked).map((c) => c.value);
+  if (!fuels.length) return setMsg("vMsg", "Kam az kam ek fuel chuno.", "err");
+  const plate = $("vPlate").value.trim().toUpperCase() || null;
+  const payload = { name, type: $("vType").value, plate, fuel_type: fuels.join(",") };
+  let res;
+  if (editingVehicleId) res = await sb.from("vehicles").update(payload).eq("id", editingVehicleId).select().single();
+  else res = await sb.from("vehicles").insert(payload).select().single();
+  if (res.error) return setMsg("vMsg", res.error.message, "err");
+  $("vDialog").close();
+  state.vid = res.data.id;
+  loadAll();
+}
+
+async function saveFuel() {
+  const row = { vehicle_id: state.vid, fuel_kind: currentFuelKind(), date: $("fDate").value || today(), odometer: num($("fOdo").value), liters: num($("fLit").value), total_cost: num($("fCost").value), full_tank: $("fFull").checked, notes: $("fNotes").value.trim() || null };
+  if (row.odometer == null || !(row.liters > 0) || row.total_cost == null) return setMsg("fMsg", "Meter, miqdar aur paisay lazmi hain.", "err");
+  const { error } = await sb.from("fuel_logs").insert(row);
+  if (error) return setMsg("fMsg", error.message, "err");
+  ["fOdo", "fLit", "fCost", "fNotes"].forEach((i) => ($(i).value = ""));
+  setMsg("fMsg", "Save ho gaya.", "ok"); loadAll();
+}
+
+async function saveMaint() {
+  const row = { vehicle_id: state.vid, date: $("mDate").value || today(), odometer: num($("mOdo").value), category: $("mCat").value, description: $("mDesc").value.trim() || null, cost: num($("mCost").value) || 0, next_due_odometer: num($("mNext").value) };
+  if (!(row.cost >= 0)) return setMsg("mMsg", "Kharcha sahi likho.", "err");
+  const { error } = await sb.from("maintenance_logs").insert(row);
+  if (error) return setMsg("mMsg", error.message, "err");
+  ["mOdo", "mCost", "mNext", "mDesc"].forEach((i) => ($(i).value = ""));
+  setMsg("mMsg", "Save ho gaya.", "ok"); loadAll();
+}
+
+async function saveMeter() {
+  const row = { vehicle_id: state.vid, date: $("rDate").value || today(), odometer: num($("rOdo").value), notes: $("rNotes").value.trim() || null };
+  if (row.odometer == null) return setMsg("rMsg", "Meter reading likho.", "err");
+  const { error } = await sb.from("meter_logs").insert(row);
+  if (error) return setMsg("rMsg", error.message, "err");
+  ["rOdo", "rNotes"].forEach((i) => ($(i).value = ""));
+  setMsg("rMsg", "Save ho gaya.", "ok"); loadAll();
+}
+
+async function auth(kind) {
+  const email = $("email").value.trim(), password = $("password").value;
+  if (!email || password.length < 6) return setMsg("authMsg", "Email aur 6+ character password do.", "err");
+  const res = kind === "login" ? await sb.auth.signInWithPassword({ email, password }) : await sb.auth.signUp({ email, password });
+  if (res.error) return setMsg("authMsg", res.error.message, "err");
+  if (kind === "signup" && !res.data.session) return setMsg("authMsg", "Account ban gaya. Email confirm karo ya Supabase mein Confirm email band karo, phir login.", "ok");
+  start();
+}
+
+async function start() {
+  const { data } = await sb.auth.getSession();
+  if (!data.session) return show("authView");
+  show("appView"); $("fDate").value = today(); $("mDate").value = today(); $("rDate").value = today();
+  loadAll();
+}
+
+// ---------- init ----------
+document.addEventListener("DOMContentLoaded", () => {
+  if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) navigator.serviceWorker.register("sw.js").catch(() => {});
+  applyTheme(currentTheme());
+  $("btnTheme").onclick = () => applyTheme(currentTheme() === "dark" ? "light" : "dark");
+  if (SUPABASE_URL.startsWith("PASTE") || SUPABASE_ANON_KEY.startsWith("PASTE")) return show("setupMsg");
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  $("btnLogin").onclick = () => auth("login");
+  $("btnSignup").onclick = () => auth("signup");
+  $("btnLogout").onclick = async () => { await sb.auth.signOut(); show("authView"); };
+  $("btnCancelVehicle").onclick = () => $("vDialog").close();
+  $("btnSaveVehicle").onclick = saveVehicle;
+  $("btnSaveFuel").onclick = saveFuel;
+  $("btnSaveMaint").onclick = saveMaint;
+  $("btnSaveMeter").onclick = saveMeter;
+  document.querySelectorAll(".seg button").forEach((b) => (b.onclick = () => { state.tab = b.dataset.tab; render(); }));
+  $("fKind").onchange = updateFuelForm;
+  start();
+});
+</script>
+</body>
+</html>
